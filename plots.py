@@ -164,4 +164,4 @@ class plots():
                             high=data['high'],
                             low=data['low'],
                             close=data['close'], name = 'market data'))
-        fig.write_html(self.path + "/Bollinger_Bands.html")
+        fig.write_html(self.path + "/Bollinger_Bands_" + idYahoo + ".html")

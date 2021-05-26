@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import os
 import sys
-sys.path.append('~/Documents/SERGIO/Trading/')
+import os
+sys.path.append(os.getcwd())
 import pandas as pd
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 import numpy as np
 from development import trainingModel, predictions, checkMetrics
+from development_ml import trainingModel_ml, predictions_ml
 from tuningHyperparameters import tuningHyperparameters
 from plots import plots
 
@@ -19,13 +20,16 @@ class tradingModel():
     price.
     '''
     
-    def __init__(self, idYahoo, pathProject):
+    def __init__(self, idYahoo, path):
         self.idYahoo = idYahoo
-        self.pathProject = pathProject
+        self.path = path
         # self.varPredict = varPredict
         self.dfToTrain = pd.DataFrame()
+        self.dfToTrain_ml = pd.DataFrame()
         self.dfToPred = pd.DataFrame()
         self.dfPrediction = pd.DataFrame()
+        self.dfToPred_ml = pd.DataFrame()
+        self.dfPrediction_ml = pd.DataFrame()
         self.dfCheck = pd.DataFrame()
         self.df_epoch = pd.DataFrame()
         self.df_batch_size = pd.DataFrame()
@@ -36,7 +40,7 @@ class tradingModel():
         
     def __takeHyperparameters(self, varPredict, startDate, endDate):
         
-        hyperparameters = tuningHyperparameters(self.idYahoo, self.pathProject, varPredict, startDate, endDate)
+        hyperparameters = tuningHyperparameters(self.idYahoo, self.path, varPredict, startDate, endDate)
         hyperparameters.training()
         df_epoch = hyperparameters.df_epoch
         df_batch_size = hyperparameters.df_batch_size
@@ -50,7 +54,7 @@ class tradingModel():
             
     def __trainingTuning(self, varPredict, startDate, endDate, optimizer, epochs, batch_size, saveModel=True, plots=False):
         
-        trainTuning = tuningHyperparameters(self.idYahoo, self.pathProject, varPredict, startDate, endDate)
+        trainTuning = tuningHyperparameters(self.idYahoo, self.path, varPredict, startDate, endDate)
         trainTuning.trainingTuning(optimizer, epochs, batch_size, saveModel, plots)
         
     def training(self, varPredict, startDate, endDate, saveModel=True, plots=False):
@@ -66,7 +70,7 @@ class tradingModel():
         In addition, the user can save the final model and graphs if he wished.
         '''
         
-        train = trainingModel(self.idYahoo, self.pathProject, varPredict, startDate, endDate)
+        train = trainingModel(self.idYahoo, self.path, varPredict, startDate, endDate)
         train.load_data()
         train.split_data(size=0.2)
         train.scaler_split_train_test()
@@ -79,8 +83,8 @@ class tradingModel():
         
         if saveModel== True:
             
-            if os.path.isfile(self.pathProject + '/metrics_train_' + varPredict + '.csv'):
-                dfMetricsOld = pd.read_csv(self.pathProject + '/metrics_train_' + varPredict + '.csv', sep=';')
+            if os.path.isfile(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + varPredict + '_lstm.csv'):
+                dfMetricsOld = pd.read_csv(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + varPredict + '_lstm.csv', sep=';')
                 dfMetricsNew = pd.DataFrame({'Metric':['RMSE','MAPE (%)'], 'LSTM_train_new': [3.80, 2.30]})
                 dfMetricsCompare = pd.merge(dfMetricsOld, dfMetricsNew, on='Metric', how='inner')
                 dfMetricsCompare['Comparation'] = np.where(dfMetricsCompare['LSTM_train_new'] < dfMetricsCompare['LSTM_train'], 1, 0)
@@ -89,7 +93,7 @@ class tradingModel():
                     print('############################# \nNew model has better result than model previous, so the new model has been saved \n#############################')
                     train.saveModel()
                     dfMetrics = pd.DataFrame({'Metric':['RMSE','MAPE (%)'], 'LSTM_train': [rmse, mape]})
-                    dfMetrics.to_csv(self.pathProject + '/metrics_train_' + varPredict + '.csv', sep=';', index=False)
+                    dfMetrics.to_csv(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + varPredict + '_lstm.csv', sep=';', index=False)
 
                     if plots == True:
                         train.plot_data()
@@ -99,7 +103,7 @@ class tradingModel():
             else:
                 train.saveModel()
                 dfMetrics = pd.DataFrame({'Metric':['RMSE','MAPE (%)'], 'LSTM_train': [rmse, mape]})
-                dfMetrics.to_csv(self.pathProject + '/metrics_train_' + varPredict + '.csv', sep=';', index=False)
+                dfMetrics.to_csv(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + varPredict + '_lstm.csv', sep=';', index=False)
                 
         if plots == True:
             train.plot_data()
@@ -110,6 +114,12 @@ class tradingModel():
         print('#########\noptimizer: {0} \nepoch: {1} \nbatch_size: {2} \n#########'.format(optimizer, epoch, batch_size))
         tradingModel.__trainingTuning(self, varPredict, startDate, endDate, optimizer, epoch, batch_size, True, True)       
     
+        # Running machine learning training
+        trainClass_ml = trainingModel_ml(self.idYahoo, self.path, varPredict, startDate, endDate)
+        trainClass_ml.load_data()
+        trainClass_ml.create_datasets(N=3, test_size=0.2, plotSave=True)
+        trainClass_ml.development_models_pred_test(plotTest=True)
+        self.dfToTrain_ml = trainClass_ml.train
     
     def prediction(self, varPredict, datePred):
         
@@ -122,10 +132,39 @@ class tradingModel():
         This function returns a csv file that is saved in pathProject.
         '''
         
-        pred = predictions(self.idYahoo, self.pathProject, varPredict, datePred)
+        def __predComplete(path, idYahoo, varPredict):
+    
+            filePath = path + '/' + idYahoo + '/output/predicciones/'
+            dfPred_lstm = pd.read_csv(filePath + 'predictionsMade_' + varPredict + '_lstm.csv', sep=';')
+            dfPred_ml = pd.read_csv(filePath + 'predictionsMade_' + varPredict + '_ml.csv', sep=';')
+        
+            dfPredAll = pd.merge(dfPred_ml, dfPred_lstm, on='Date', how='inner')
+            varsPred = [elem for elem in dfPredAll.columns if elem not in ['Date', 'pred_ensamble_ml']]
+            dfPredAll['pred_ensamble_ml_lstm'] = dfPredAll[varsPred].mean(axis=1)
+        
+            os.remove(filePath + 'predictionsMade_' + varPredict + '_lstm.csv')
+            os.remove(filePath + 'predictionsMade_' + varPredict + '_ml.csv')
+            filePred = filePath + 'predictionsMade_' + varPredict + '_' + idYahoo + '.csv'
+            
+            if os.path.exists(filePred):
+                dfAllPreds = pd.read_csv(filePred, sep=';')
+                dfAllPreds.loc[len(dfAllPreds)] = dfPredAll.values.tolist()[0]
+                dfAllPreds.to_csv(filePred, sep=';', index=False)
+            else:
+                dfPredAll.to_csv(filePred, sep=';', index=False)
+        
+        pred = predictions(self.idYahoo, self.path, varPredict, datePred)
         pred.pred_closing_price()
         self.dfToPred = pred.df
         self.dfPrediction = pred.dfPred
+        
+        # Prediction made with machine learning models
+        pred_ml = predictions_ml(self.idYahoo, self.path, varPredict, datePred)
+        pred_ml.pred_closing_price(N=3)
+        self.dfToPred_ml = pred_ml.dfShift
+        self.dfPrediction_ml = pred_ml.dfPred
+        
+        __predComplete(self.path, self.idYahoo, varPredict)
         
         
     def checkPredictions(self, varPredict):
@@ -137,7 +176,7 @@ class tradingModel():
         This function returns a csv file that is saved in pathProject.
         '''
         
-        check = checkMetrics(self.idYahoo, self.pathProject, varPredict)
+        check = checkMetrics(self.idYahoo, self.path, varPredict)
         check.metricsPredictions()
         self.dfCheck = check.df
         
@@ -149,7 +188,7 @@ class tradingModel():
         this can be with a single market or with a list of markets.
         '''
         
-        plot = plots(self.pathProject)
+        plot = plots(self.path)
         if allMarkets == False:
             plot.profitabilityMarket(self.idYahoo)
         else:
@@ -165,6 +204,7 @@ class tradingModel():
         This function creates a chart using the Bollinger Bands.
         '''
         
-        plot = plots(self.pathProject)
+        pathProject = self.path + '/' + self.idYahoo
+        plot = plots(pathProject)
         plot.plotBollingerBands(self.idYahoo, startDate, endDate, Candlestick)
 

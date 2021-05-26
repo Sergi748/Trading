@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
-sys.path.append('~/Documents/SERGIO/Trading/')
+import os
+sys.path.append(os.getcwd())
 import numpy as np
 import pandas as pd
 from development import trainingModel
@@ -13,9 +14,9 @@ class tuningHyperparameters():
  
     np.random.seed(1234)
     
-    def __init__(self, idYahoo, pathProject, varPredict, startDate, endDate):
+    def __init__(self, idYahoo, path, varPredict, startDate, endDate):
         self.idYahoo = idYahoo
-        self.pathProject = pathProject
+        self.path = path
         self.varPredict = varPredict
         self.startDate = startDate
         self.endDate = endDate
@@ -43,7 +44,7 @@ class tuningHyperparameters():
         In addition, the user can save the final model and graphs if he wished.
         '''
 
-        trainClass = trainingModel(self.idYahoo, self.pathProject, self.varPredict, self.startDate, self.endDate)
+        trainClass = trainingModel(self.idYahoo, self.path, self.varPredict, self.startDate, self.endDate)
         trainClass.load_data()
         trainClass.split_data(size=0.2)
         trainClass.scaler_split_train_test()
@@ -100,7 +101,7 @@ class tuningHyperparameters():
         
     def trainingTuning(self, optimizer, epochs, batch_size, saveModel=True, plots=False):
                     
-        trainTuning = trainingModel(self.idYahoo, self.pathProject, self.varPredict, self.startDate, self.endDate)
+        trainTuning = trainingModel(self.idYahoo, self.path, self.varPredict, self.startDate, self.endDate)
         trainTuning.load_data()
         trainTuning.split_data(size=0.2)
         trainTuning.scaler_split_train_test()
@@ -109,7 +110,7 @@ class tuningHyperparameters():
         mape, rmse = trainTuning.metrics()
         
         if saveModel == True:
-            dfMetricsOld = pd.read_csv(self.pathProject + '/metrics_train_' + self.varPredict + '.csv', sep=';')
+            dfMetricsOld = pd.read_csv(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + self.varPredict + '_lstm.csv', sep=';')
             dfMetricsNew = pd.DataFrame({'Metric':['RMSE','MAPE (%)'], 'LSTM_train_new': [rmse, mape]})
             dfMetricsCompare = pd.merge(dfMetricsOld, dfMetricsNew, on='Metric', how='inner')
             dfMetricsCompare['Comparation'] = np.where(dfMetricsCompare['LSTM_train_new'] < dfMetricsCompare['LSTM_train'], 1, 0)
@@ -118,7 +119,7 @@ class tuningHyperparameters():
                 print('############################# \nNew model with tuning hyperparameters has better result than model without tuning hyperparameters, so the new model has been saved \n#############################')
                 trainTuning.saveModel()
                 dfMetrics = pd.DataFrame({'Metric':['RMSE','MAPE (%)'], 'LSTM_train': [rmse, mape]})
-                dfMetrics.to_csv(self.pathProject + '/metrics_train_' + self.varPredict + '.csv', sep=';', index=False)
+                dfMetrics.to_csv(self.path + '/' + self.idYahoo + '/output/metricas/metrics_train_' + self.varPredict + '_lstm.csv', sep=';', index=False)
 
                 if plots == True:
                     trainTuning.plot_data()

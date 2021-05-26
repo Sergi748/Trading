@@ -29,10 +29,10 @@ class trainingModel():
        
     np.random.seed(1234)
     
-    def __init__(self, idYahoo, pathProject, varPredict, startHistorical, endHistorical):
+    def __init__(self, idYahoo, path, varPredict, startHistorical, endHistorical):
     
         self.idYahoo = idYahoo
-        self.pathProject = pathProject
+        self.path = path
         self.varPredict = varPredict
         self.startHistorical = startHistorical
         self.endHistorical = endHistorical
@@ -47,8 +47,15 @@ class trainingModel():
 
 
     def __checkPath(self):    
-        if os.path.exists(self.pathProject) == False:
-            os.mkdir(self.pathProject)
+        listDir = ['output', 'governance']
+        for i in listDir:
+            if os.path.exists(self.path + '/' + self.idYahoo + '/' + i) == False:
+                os.makedirs(self.path + '/' + self.idYahoo + '/' + i)
+
+        listDirOut = ['modelos', 'metricas', 'predicciones', 'graficas']
+        for i in listDirOut:
+            if os.path.exists(self.path + '/' + self.idYahoo + '/output/' + i) == False:
+                os.makedirs(self.path + '/' + self.idYahoo + '/output/' + i)
 
 
     def load_data(self):
@@ -94,7 +101,7 @@ class trainingModel():
         plt.legend(loc = "upper left")
         plt.xlabel('Year')
         plt.ylabel('Stock Price ($)')
-        plt.savefig(self.pathProject + '/plot_data_' + self.varPredict + '.png')
+        plt.savefig(self.path + '/' + self.idYahoo + '/output/graficas/plot_data_' + self.varPredict + '_lstm.png')
         plt.show()
     
     
@@ -160,7 +167,7 @@ class trainingModel():
         # we use past 60 days stock prices for our training to predict 61th day's closing price.
         X_train, y_train = _get_x_y(scaled_data_train, 60, 60)
         
-        scaler_filepath = self.pathProject + '/scaler_' + self.idYahoo + '_' + self.varPredict + '.pkl'
+        scaler_filepath = self.path + '/' + self.idYahoo + '/output/modelos/scaler_' + self.varPredict + '_lstm.pkl'
         joblib.dump(scaler, scaler_filepath)
         
         self.X_train = X_train
@@ -231,7 +238,7 @@ class trainingModel():
         plt.plot(self.prediction['Date'], self.prediction[self.varPredict], label = self.varPredict + ' Price History [test data]')
         plt.plot(self.prediction['Date'], self.prediction['Predictions_lstm_' + self.varPredict], label = self.varPredict + ' Price - Predicted')
         plt.legend(loc = "upper left")
-        plt.savefig(self.pathProject + '/plot_data_train_prediction_' + self.varPredict + '.png')
+        plt.savefig(self.path + '/' + self.idYahoo + '/output/graficas/plot_data_train_prediction_' + self.varPredict + '_lstm.png')
         plt.show()
 
 
@@ -267,18 +274,18 @@ class trainingModel():
         '''
         
         model_json = self.model.to_json()
-        model_filepath = self.pathProject + '/model_' + self.idYahoo + '_' + self.varPredict + '.json'
+        model_filepath = self.path + '/' + self.idYahoo + '/output/modelos/model_' + self.varPredict + '_lstm.json'
         with open(model_filepath, 'w') as json_file:
             json_file.write(model_json)
-        saveWeights = self.pathProject + '/model_' + self.idYahoo + '_' + self.varPredict + '.h5'
+        saveWeights = self.path + '/' + self.idYahoo + '/output/modelos/model_' +  self.varPredict + '_lstm.h5'
         self.model.save_weights(saveWeights)
             
     
 class predictions():
     
-    def __init__(self, idYahoo, pathProject, varPredict, datePred):
+    def __init__(self, idYahoo, path, varPredict, datePred):
         self.idYahoo = idYahoo
-        self.pathProject = pathProject
+        self.path = path
         self.varPredict = varPredict
         self.datePred = datePred
         self.model = ''
@@ -291,14 +298,14 @@ class predictions():
         Load the trained model saved in pathProject.
         '''
 
-        nameModel = 'model_' + self.idYahoo + '_' + self.varPredict + '.json'
-        fileComplete = self.pathProject + '/' + nameModel
+        nameModel = 'model_' + self.varPredict + '_lstm.json'
+        fileComplete = self.path + '/' + self.idYahoo + '/output/modelos/' + nameModel
         # load json and create model
         json_file = open(fileComplete, 'r')
         loaded_model_json = json_file.read()
         json_file.close()
         loaded_model = model_from_json(loaded_model_json)
-        fileH5 = self.pathProject + '/model_' + self.idYahoo + '_' + self.varPredict + '.h5'
+        fileH5 = self.path + '/' + self.idYahoo + '/output/modelos/model_' + self.varPredict + '_lstm.h5'
         loaded_model.load_weights(fileH5)
     
         self.model = loaded_model
@@ -338,7 +345,7 @@ class predictions():
         predictions.__load_data_pred(self)
         predictions.__load_model(self)
         
-        scaler_name = self.pathProject + '/scaler_' + self.idYahoo + '_' + self.varPredict + '.pkl'
+        scaler_name = self.path + '/' + self.idYahoo + '/output/modelos/scaler_' + self.varPredict + '_lstm.pkl'
         scaler = joblib.load(scaler_name)
         
         inputs = self.df[self.varPredict][len(self.df) - 60:].values
@@ -356,25 +363,26 @@ class predictions():
         closing_price = self.model.predict(X_test)
         closing_price = scaler.inverse_transform(closing_price)
         predicted_price = float(closing_price[-1])        
-        print('Prediction price date {0}: {1}'.format(self.datePred, predicted_price))
+        # print('Prediction price date {0}: {1}'.format(self.datePred, predicted_price))
 
         self.dfPred = predicted_price
               
-        fileSummary = self.pathProject + '/predictionsMade_' + self.varPredict + '.csv'
+        fileSummary = self.path + '/' + self.idYahoo + '/output/predicciones/predictionsMade_' + self.varPredict + '_lstm.csv'
         if os.path.exists(fileSummary):
             dfSummary = pd.read_csv(fileSummary, sep=';')
             dfSummary.loc[len(dfSummary)] = [self.datePred, predicted_price]
             dfSummary.to_csv(fileSummary, index=False, sep=';')
         else:
-            dfSummary = pd.DataFrame(columns=['dateToPredict', 'prediction_' + self.varPredict], data=[[self.datePred, predicted_price]])
+            dfSummary = pd.DataFrame(columns=['Date', 'pred_lstm'], data=[[self.datePred, predicted_price]])
             dfSummary.to_csv(fileSummary, index=False, sep=';')
+
 
 
 class checkMetrics():
     
-    def __init__(self, idYahoo, pathProject, varPredict):
+    def __init__(self, idYahoo, path, varPredict):
         self.idYahoo = idYahoo
-        self.pathProject = pathProject
+        self.path = path
         self.varPredict = varPredict
         self.df = pd.DataFrame()
 
@@ -390,8 +398,8 @@ class checkMetrics():
         The csv file is saved in pathProject.
         '''
         
-        filePrediction = self.pathProject + '/predictionsMade_' + self.varPredict + '.csv'
-        dfPredictions = pd.read_csv(filePrediction, sep=';').rename(columns={'dateToPredict':'Date'})
+        filePrediction = self.path + '/' + self.idYahoo + '/output/predicciones/predictionsMade_' + self.varPredict + '_' + self.idYahoo + '.csv'
+        dfPredictions = pd.read_csv(filePrediction, sep=';')
         
         startDateCheck = dfPredictions.Date.min()
         endDateCheck = str(datetime.datetime.strptime(dfPredictions.Date.max(), '%Y-%m-%d') + datetime.timedelta(days=1))[0:10]
@@ -406,28 +414,60 @@ class checkMetrics():
         dfCheck = dfCheck[['Date', self.varPredict]]
         df = pd.merge(dfCheck, dfPredictions, on='Date', how='left')
         
-        y_true = df[self.varPredict]
-        y_pred = df['prediction_' + self.varPredict]
+        varsPred = [elem for elem in df.columns if elem not in ['Date', self.varPredict]]
+        varsOrigin = list(df.columns)
+        varsOrigin.remove('Date')
+        varsMape = []
+        varsRMSE = []
+        for var in varsPred:
+            newValuesMape = []
+            newValuesRMSE = []
+            for i in sorted(df.Date.unique()):
+                valueMape = np.mean(np.abs((np.array(df[df.Date == i][self.varPredict]) - np.array(df[df.Date == i][var])) / (np.array(df[df.Date == i][self.varPredict])))) * 100
+                valueRMSE = np.sqrt(np.mean(np.power((df[df.Date == i][self.varPredict] - df[df.Date == i][var]), 2)))
+                newValuesMape.append(valueMape)
+                newValuesRMSE.append(valueRMSE)
         
-        y_true_mape, y_pred_mape = np.array(y_true), np.array(y_pred)
-        mape = np.mean(np.abs((y_true_mape - y_pred_mape) / y_true_mape)) * 100
-        rmse = np.sqrt(np.mean(np.power((y_true - y_pred), 2)))
+            varsMape.append('mape_' + var)
+            varsRMSE.append('rmse_' + var)
+            df['mape_' + var] = newValuesMape
+            df['rmse_' + var] = newValuesRMSE
         
-        print('Root Mean Squared Error: {0} \nMean Absolute Percentage Error (%): {1}'.format(rmse, mape))
+        df = df[['Date'] + varsOrigin + varsMape + varsRMSE]
         
         # Saved dataset
-        fileName = self.pathProject + '/valueReal_predictions_' + self.varPredict + '.csv'
-        df.to_csv(fileName, sep=';', index=False)
+        pathPred = self.path + '/' + self.idYahoo + '/output/predicciones/valueReal_predictions_' + self.varPredict + '_' + self.idYahoo + '.csv'
+        pathMetrics = self.path + '/' + self.idYahoo + '/output/metricas/metrics_predict_' + self.varPredict + '_' + self.idYahoo + '.csv'
+        df.to_csv(pathPred, sep=';', index=False)
+        df[['Date'] + varsMape + varsRMSE].to_csv(pathMetrics, sep=';', index=False)
         
-        # plot
-        plt.figure(figsize = (20,10))
-        plt.xlabel('Year')
-        plt.ylabel('Stock Price ($)')
-        plt.plot(df['Date'], df[self.varPredict], label = self.varPredict + ' Price History')
-        plt.plot(df['Date'], df['prediction_' + self.varPredict], label = self.varPredict + ' Price - Predicted')
-        plt.legend(loc = "upper left")
-        plt.savefig(self.pathProject + '/plot_prediction_' + self.varPredict + '.png')
-        plt.show()
+        def plotPredicts(df, varsToPlot, name):
+        
+            # plot
+            plt.figure(figsize = (20,10))
+            plt.xlabel('Day')
+            if name == 'value':
+                plt.ylabel('Stock Price ($)')
+            elif name == 'RMSE':
+                plt.ylabel('RMSE')
+            elif name == 'Mape':
+                plt.ylabel('Mape')
+            x = df.Date
+            y = []
+            labels = []
+            marks = [".", ",","o","v","^","<",">","1","2"]
+            for var in varsToPlot:
+                labels.append(var)
+                y.append(df[var].values.tolist())
+            for y_arr, label, mark in zip(y, labels, marks):
+                plt.plot(x, y_arr, label=label, marker=mark)
+            plt.legend(loc = "upper left")
+            plt.xticks(rotation=90)
+            plt.savefig(self.path + '/' + self.idYahoo + '/output/graficas/plot_prediction_' + self.varPredict + '_' + self.idYahoo + '_' + name + '.png')
+            plt.show()
                 
+        plotPredicts(df, varsOrigin, 'value')
+        plotPredicts(df, varsRMSE, 'RMSE')
+        plotPredicts(df, varsMape, 'Mape')
         self.df = df
         
