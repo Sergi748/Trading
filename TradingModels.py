@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import os
 import sys
-sys.path.append('OneDrive - Teradata/Documents/SERGIO/Trading/')
+sys.path.append(os.getcwd())
 from main import tradingModel
 
 # Training model
@@ -12,14 +13,13 @@ trading = tradingModel(idYahoo=idYahoo, path=path)
 trading.training(varPredict, '2019-01-04', '2021-05-14', True, True)
 
 # Prediction
-trading.prediction(varPredict, '2021-02-27')
+trading.prediction(varPredict, '2021-05-27')
 
 # Metrics prediction
 trading.checkPredictions(varPredict)
 
 # Profitability
-dictMarkets = {'NDAQ':'pink', 'TSLA':'red', 'AAPL':'blue', 'AMZN':'orange'
-               , 'GOOG':'yellow'}
+dictMarkets = {'NDAQ':'pink', 'TSLA':'red', 'AAPL':'blue', 'AMZN':'orange', 'GOOG':'yellow'}
 dateRentability = '2021-03-03'
 trading.plotProfitability(dateRentability=dateRentability, dictMarkets=dictMarkets)
 trading.plotProfitability(allMarkets=False)
