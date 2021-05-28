@@ -30,7 +30,7 @@ def checkPred(path, market, varPredict):
         trading.checkPredictions(varPredict)
 
 
-def createFolderSend(path, varPredict, markets):
+def createFolderSend(path, varPredict, markets, createZIP = False):
     
     '''Function that creates a folder with all files to be sent by email.'''
 
@@ -51,8 +51,9 @@ def createFolderSend(path, varPredict, markets):
         for file in files:
             shutil.copy(file, pathFinal)
             
-    # Making zip folder 
-    shutil.make_archive('Predicciones', 'zip', pathFinal)
+    if createZIP == True:
+        # Making zip folder 
+        shutil.make_archive('Predicciones', 'zip', pathFinal)
 
 
 varPredict = 'adjclose'
