@@ -438,7 +438,7 @@ class checkMetrics():
         # Saved dataset
         pathPred = self.path + '/' + self.idYahoo + '/output/predicciones/valueReal_predictions_' + self.varPredict + '_' + self.idYahoo + '.csv'
         pathMetrics = self.path + '/' + self.idYahoo + '/output/metricas/metrics_predict_' + self.varPredict + '_' + self.idYahoo + '.csv'
-        df.to_csv(pathPred, sep=';', index=False)
+        df[['Date'] + varsOrigin].to_csv(pathPred, sep=';', index=False)
         df[['Date'] + varsMape + varsRMSE].to_csv(pathMetrics, sep=';', index=False)
         
         def plotPredicts(df, varsToPlot, name):
